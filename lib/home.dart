@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
@@ -705,9 +706,37 @@ class _ReplyFab extends StatefulWidget {
   _ReplyFabState createState() => _ReplyFabState();
 }
 
+class _FadeThroughTransitionSwitcher extends StatelessWidget {
+  const _FadeThroughTransitionSwitcher({
+    required this.fillColor,
+    required this.child,
+  });
+
+  final Widget child;
+  final Color fillColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return PageTransitionSwitcher(
+      transitionBuilder: (child, animation, secondaryAnimation) {
+        return FadeThroughTransition(
+          fillColor: fillColor,
+          child: child,
+          animation: animation,
+          secondaryAnimation: secondaryAnimation,
+        );
+      },
+      child: child,
+      duration: const Duration(milliseconds: 250),
+    );
+  }
+}
+
 class _ReplyFabState extends State<_ReplyFab>
     with SingleTickerProviderStateMixin {
+  // ignore: todo
   // TODO: Add Fade through transition between compose and reply FAB (Motion)
+  static final fabKey = UniqueKey();
   static const double _mobileFabDimension = 56;
 
   @override
@@ -718,54 +747,62 @@ class _ReplyFabState extends State<_ReplyFab>
     return Selector<EmailStore, bool>(
       selector: (context, emailStore) => emailStore.onMailView,
       builder: (context, onMailView, child) {
+        // ignore: todo
         // TODO: Add Fade through transition between compose and reply FAB (Motion)
-        final fabSwitcher = onMailView
-            ? const Icon(
-                Icons.reply_all,
-                color: Colors.black,
-              )
-            : const Icon(
-                Icons.create,
-                color: Colors.black,
-              );
+        final fabSwitcher = _FadeThroughTransitionSwitcher(
+          fillColor: Colors.transparent,
+          child: onMailView
+              ? Icon(
+                  Icons.reply_all,
+                  color: Colors.black,
+                  key: fabKey,
+                )
+              : const Icon(
+                  Icons.create,
+                  color: Colors.black,
+                ),
+        );
         final tooltip = onMailView ? 'Reply' : 'Compose';
 
+        // ignore: todo
         // TODO: Add Container Transform from FAB to compose email page (Motion)
-        return Material(
-          color: theme.colorScheme.secondary,
-          shape: circleFabBorder,
-          child: Tooltip(
-            message: tooltip,
-            child: InkWell(
-              customBorder: circleFabBorder,
-              onTap: () {
-                Provider.of<EmailStore>(
-                  context,
-                  listen: false,
-                ).onCompose = true;
-
-                Navigator.of(context).push(
-                  PageRouteBuilder(
-                    pageBuilder: (
-                      BuildContext context,
-                      Animation<double> animation,
-                      Animation<double> secondaryAnimation,
-                    ) {
-                      return const ComposePage();
-                    },
+        return OpenContainer(
+            openColor: theme.cardColor,
+            onClosed: (success) {
+              Provider.of<EmailStore>(
+                context,
+                listen: false,
+              ).onCompose = false;
+            },
+            closedShape: circleFabBorder,
+            closedColor: theme.colorScheme.secondary,
+            closedElevation: 6,
+            transitionDuration: const Duration(milliseconds: 400),
+            closedBuilder: (context, openContainer) {
+              return Tooltip(
+                message: tooltip,
+                child: InkWell(
+                  customBorder: circleFabBorder,
+                  onTap: () {
+                    Provider.of<EmailStore>(
+                      context,
+                      listen: false,
+                    ).onCompose = true;
+                    openContainer();
+                  },
+                  child: SizedBox(
+                    height: _mobileFabDimension,
+                    width: _mobileFabDimension,
+                    child: Center(
+                      child: fabSwitcher,
+                    ),
                   ),
-                );
-              },
-              child: SizedBox(
-                height: _mobileFabDimension,
-                width: _mobileFabDimension,
-                child: Center(
-                  child: fabSwitcher,
                 ),
-              ),
-            ),
-          ),
-        );
+              );
+            },
+            openBuilder: (context, closedContainer) {
+              return const ComposePage();
+            });
       },
     );
   }
